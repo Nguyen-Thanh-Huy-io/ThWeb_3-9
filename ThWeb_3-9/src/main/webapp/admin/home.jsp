@@ -1,4 +1,3 @@
-
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <!DOCTYPE html>
@@ -37,16 +36,25 @@
             background: #ecf0f1;
             border-left: 4px solid #2c3e50;
         }
-        .logout-btn {
+        .logout-btn, .manage-btn {
             display: inline-block;
             padding: 10px 20px;
-            background: #e74c3c;
             color: white;
             text-decoration: none;
             border-radius: 5px;
+            margin-right: 10px;
+        }
+        .logout-btn {
+            background: #e74c3c;
         }
         .logout-btn:hover {
             background: #c0392b;
+        }
+        .manage-btn {
+            background: #28a745;
+        }
+        .manage-btn:hover {
+            background: #218838;
         }
     </style>
 </head>
@@ -63,6 +71,7 @@
                     <p>Email: ${sessionScope.account.email}</p>
                     <p>Ngày tạo: ${sessionScope.account.createDate}</p>
                 </div>
+                <a href="<c:url value='/admin/category/list'/>" class="manage-btn">Quản lý danh mục</a>
                 <a href="${pageContext.request.contextPath}/logout" class="logout-btn">Đăng xuất</a>
             </c:if>
             <c:if test="${sessionScope.account == null}">

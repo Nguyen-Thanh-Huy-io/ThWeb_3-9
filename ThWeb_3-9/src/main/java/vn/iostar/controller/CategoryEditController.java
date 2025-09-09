@@ -16,85 +16,135 @@ import vn.iostar.utils.Constant;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.sql.SQLException;
 
 @WebServlet("/admin/category/edit")
 @MultipartConfig
 public class CategoryEditController extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private final CategoryService cateService = new CategoryServiceImpl();
+    private static final String UPLOAD_DIR = "E:\\upload";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) 
             throws ServletException, IOException {
+        String message = null;
+        Category category = null;
+
         try {
-            int id = Integer.parseInt(request.getParameter("id"));
-            Category category = cateService.get(id);
-            if (category != null) {
-                request.setAttribute("category", category);
-                RequestDispatcher dispatcher = request.getRequestDispatcher("edit-category.jsp");
-                dispatcher.forward(request, response);
+            String idStr = request.getParameter("id");
+            if (idStr != null && !idStr.trim().isEmpty()) {
+                int id = Integer.parseInt(idStr);
+                category = cateService.get(id);
+                if (category == null) {
+                    message = "Danh mục không tồn tại với ID: " + id;
+                }
             } else {
-                response.sendRedirect(request.getContextPath() + "/admin/category/list?error=notfound");
+                message = "ID danh mục không được cung cấp.";
             }
         } catch (NumberFormatException e) {
-            response.sendRedirect(request.getContextPath() + "/admin/category/list?error=invalidid");
+            message = "ID danh mục không hợp lệ.";
         }
+
+        request.setAttribute("category", category);
+        request.setAttribute("message", message);
+        RequestDispatcher dispatcher = request.getRequestDispatcher("/admin/edit-category.jsp");
+        dispatcher.forward(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) 
             throws ServletException, IOException {
-        
         request.setCharacterEncoding("UTF-8");
+        response.setContentType("text/html;charset=UTF-8");
+
+        Category categoryToUpdate = new Category();
+        String message = null;
 
         try {
-            int id = Integer.parseInt(request.getParameter("id"));
+            // Lấy ID và các thông tin trực tiếp từ request.getParameter
+            String idStr = request.getParameter("id");
+            if (idStr == null || idStr.trim().isEmpty()) {
+                throw new IllegalArgumentException("ID danh mục không được cung cấp.");
+            }
+            int id = Integer.parseInt(idStr);
             String name = request.getParameter("name");
+            if (name == null || name.trim().isEmpty()) {
+                throw new IllegalArgumentException("Tên danh mục không được rỗng.");
+            }
 
-            Category categoryToUpdate = cateService.get(id);
+            // Lấy category hiện có từ database
+            categoryToUpdate = cateService.get(id);
             if (categoryToUpdate == null) {
-                response.sendRedirect(request.getContextPath() + "/admin/category/list?error=notfound");
-                return;
+                throw new SQLException("Danh mục không tồn tại với ID: " + id);
             }
             
+            // Cập nhật tên mới
             categoryToUpdate.setCatename(name);
 
+            // Xử lý file upload
             Part filePart = request.getPart("icon");
-            
-            if (filePart != null && filePart.getSize() > 0) {
-                String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
+            String fileName = filePart != null ? filePart.getSubmittedFileName() : null;
 
-                String realPath = request.getServletContext().getRealPath("/");
-
+            // Chỉ xử lý nếu người dùng chọn file mới
+            if (fileName != null && !fileName.isEmpty()) {
+                // Xóa file ảnh cũ
                 String oldIconPath = categoryToUpdate.getIcon();
                 if (oldIconPath != null && !oldIconPath.isEmpty()) {
-                    File oldFile = new File(realPath + oldIconPath);
+                    File oldFile = new File(UPLOAD_DIR + File.separator + oldIconPath);
                     if (oldFile.exists()) {
                         oldFile.delete();
                     }
                 }
-                String newFileName = System.currentTimeMillis() + "_" + fileName;
                 
-                String uploadDirPath = realPath + Constant.DIR + File.separator + "category";
+                // Tạo tên file mới
+                int index = fileName.lastIndexOf(".");
+                if (index < 0) {
+                    throw new IllegalArgumentException("File không có phần mở rộng hợp lệ.");
+                }
+                String ext = fileName.substring(index + 1);
+                String newFileName = System.currentTimeMillis() + "." + ext;
                 
-                File uploadDir = new File(uploadDirPath);
+                // Đường dẫn lưu file
+                String uploadPath = UPLOAD_DIR + File.separator + "category";
+                File uploadDir = new File(uploadPath);
                 if (!uploadDir.exists()) {
                     uploadDir.mkdirs();
                 }
                 
-                String filePath = uploadDirPath + File.separator + newFileName;
+                String filePath = uploadPath + File.separator + newFileName;
                 
+                // Lưu file mới
                 filePart.write(filePath);
                 
-                categoryToUpdate.setIcon(Constant.DIR + "/category/" + newFileName);
+                // Cập nhật đường dẫn ảnh mới
+                categoryToUpdate.setIcon("category/" + newFileName);
             }
 
+            // Cập nhật vào database
             cateService.edit(categoryToUpdate);
             response.sendRedirect(request.getContextPath() + "/admin/category/list");
 
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
+            message = e.getMessage();
+            request.setAttribute("category", categoryToUpdate);
+            request.setAttribute("message", message);
+            RequestDispatcher dispatcher = request.getRequestDispatcher("/admin/edit-category.jsp");
+            dispatcher.forward(request, response);
+        } catch (SQLException e) {
             e.printStackTrace();
-            response.sendRedirect(request.getContextPath() + "/admin/category/list?error=true");
+            message = "Lỗi khi cập nhật danh mục: " + e.getMessage();
+            request.setAttribute("category", categoryToUpdate);
+            request.setAttribute("message", message);
+            RequestDispatcher dispatcher = request.getRequestDispatcher("/admin/edit-category.jsp");
+            dispatcher.forward(request, response);
+        } catch (IOException e) {
+            e.printStackTrace();
+            message = "Lỗi khi xử lý file upload: " + e.getMessage();
+            request.setAttribute("category", categoryToUpdate);
+            request.setAttribute("message", message);
+            RequestDispatcher dispatcher = request.getRequestDispatcher("/admin/edit-category.jsp");
+            dispatcher.forward(request, response);
         }
     }
 }

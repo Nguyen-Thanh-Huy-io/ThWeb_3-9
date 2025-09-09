@@ -1,6 +1,8 @@
 package vn.iostar.controller;
 
 import java.io.IOException;
+import java.sql.SQLException;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -16,11 +18,12 @@ import vn.iostar.service.CategoryServiceImpl;
 public class CategoryDeleteController extends HttpServlet {
 	CategoryService cateService = new CategoryServiceImpl();
 	private static final long serialVersionUID = 1L;
-
+       
     /**
-     * Default constructor. 
+     * @see HttpServlet#HttpServlet()
      */
     public CategoryDeleteController() {
+        super();
         // TODO Auto-generated constructor stub
     }
 
@@ -28,15 +31,24 @@ public class CategoryDeleteController extends HttpServlet {
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
     @Override
-	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// TODO Auto-generated method stub
-    	String id = request.getParameter("id");
-    	cateService.delete(Integer.parseInt(id));
-    	response.sendRedirect(request.getContextPath() + "/admin/category/list");
-    	}
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String id = req.getParameter("id");
+        String message = null;
 
-	}
-
+        try {
+            if (id != null && !id.trim().isEmpty()) {
+                int categoryId = Integer.parseInt(id);
+                cateService.delete(categoryId);
+                resp.sendRedirect(req.getContextPath() + "/admin/category/list?message=deleteSuccess");
+            } else {
+                message = "ID danh mục không được cung cấp.";
+                resp.sendRedirect(req.getContextPath() + "/admin/category/list?error=" + message);
+            }
+        } catch (NumberFormatException e) {
+            message = "ID danh mục không hợp lệ.";
+            resp.sendRedirect(req.getContextPath() + "/admin/category/list?error=" + message);
+        }
+    }
 	/**
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */

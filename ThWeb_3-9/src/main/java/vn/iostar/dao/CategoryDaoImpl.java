@@ -134,5 +134,4 @@ public class CategoryDaoImpl implements CategoryDao
 	    }
 	    return categories;
 	}
-
 }
